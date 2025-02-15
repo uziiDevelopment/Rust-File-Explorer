@@ -38,26 +38,87 @@ let searchConfig: SearchConfig = {
 };
 
 function formatFileSize(bytes: number): string {
-  if (bytes === 0) return '0 B';
-  const k = 1024;
-  const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-  const i = Math.floor(Math.log(bytes) / Math.log(k));
-  return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let size = bytes;
+  let unitIndex = 0;
+  
+  while (size >= 1024 && unitIndex < units.length - 1) {
+    size /= 1024;
+    unitIndex++;
+  }
+  
+  return `${size.toFixed(1)} ${units[unitIndex]}`;
 }
 
-function getFileIcon(isDirectory: boolean): string {
-  if (isDirectory) {
-    return `
-      <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-      </svg>
-    `;
+function getFileIcon(file: FileInfo): string {
+  if (file.is_dir) {
+    return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V7a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z"/>
+    </svg>`;
   }
+
+  const extension = file.name.split('.').pop()?.toLowerCase();
+  
+  switch (extension) {
+    case 'pdf':
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <path d="M14 2v6h6"/>
+        <path d="M16 13H8"/>
+        <path d="M16 17H8"/>
+        <path d="M10 9H8"/>
+      </svg>`;
+    
+    case 'doc':
+    case 'docx':
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <path d="M14 2v6h6"/>
+        <path d="M16 13H8"/>
+        <path d="M16 17H8"/>
+        <path d="M10 9H8"/>
+      </svg>`;
+    
+    case 'jpg':
+    case 'jpeg':
+    case 'png':
+    case 'gif':
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+        <circle cx="8.5" cy="8.5" r="1.5"/>
+        <path d="M21 15l-5-5L5 21"/>
+      </svg>`;
+    
+    case 'mp4':
+    case 'mov':
+    case 'avi':
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"/>
+        <path d="M10 8l6 4-6 4V8z"/>
+      </svg>`;
+    
+    default:
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <path d="M14 2v6h6"/>
+      </svg>`;
+  }
+}
+
+function renderFileItem(file: FileInfo): string {
+  const icon = getFileIcon(file);
+  const size = formatFileSize(file.size);
+  
   return `
-    <svg class="file-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z" />
-      <path d="M13 2v7h7" />
-    </svg>
+    <div class="file-item" data-path="${file.path}">
+      <div class="file-icon">
+        ${icon}
+      </div>
+      <div class="file-info">
+        <div class="file-name">${file.name}</div>
+        <div class="file-meta">${size}</div>
+      </div>
+    </div>
   `;
 }
 
@@ -109,46 +170,74 @@ async function recursiveQuickSearch(baseDir: string, query: string, depth: numbe
       path: baseDir,
       searchHidden: searchConfig.searchHidden 
     });
-    const lowerQuery = query.toLowerCase();
     
     // Score each result based on how well it matches
     const scoredResults = contents.map(file => {
-      const lowerName = file.name.toLowerCase();
+      const fileName = file.name;
+      const lowerFileName = fileName.toLowerCase();
+      const lowerQuery = query.toLowerCase();
       let score = 0;
       
       // Exact match gets highest score
-      if (lowerName === lowerQuery) {
+      if (fileName === query) {
         score = 100;
       }
-      // Starting with query gets high score
-      else if (lowerName.startsWith(lowerQuery)) {
+      // Case-insensitive exact match
+      else if (lowerFileName === lowerQuery) {
+        score = 95;
+      }
+      // Starts with query (case-sensitive)
+      else if (fileName.startsWith(query)) {
+        score = 90;
+      }
+      // Starts with query (case-insensitive)
+      else if (lowerFileName.startsWith(lowerQuery)) {
+        score = 85;
+      }
+      // Contains query as word (case-sensitive)
+      else if (new RegExp(`\\b${escapeRegExp(query)}\\b`).test(fileName)) {
         score = 80;
       }
-      // Contains full query gets medium score
-      else if (lowerName.includes(lowerQuery)) {
-        score = 60;
+      // Contains query as word (case-insensitive)
+      else if (new RegExp(`\\b${escapeRegExp(lowerQuery)}\\b`, 'i').test(fileName)) {
+        score = 75;
       }
-      // Contains all characters in order gets low score
+      // Contains query (case-sensitive)
+      else if (fileName.includes(query)) {
+        score = 70;
+      }
+      // Contains query (case-insensitive)
+      else if (lowerFileName.includes(lowerQuery)) {
+        score = 65;
+      }
+      // Contains all words in any order (case-insensitive)
       else {
-        let lastIndex = -1;
-        let allFound = true;
-        for (const char of lowerQuery) {
-          const index = lowerName.indexOf(char, lastIndex + 1);
-          if (index === -1) {
-            allFound = false;
-            break;
-          }
-          lastIndex = index;
+        const queryWords = lowerQuery.split(/\s+/);
+        const allWordsFound = queryWords.every(word => lowerFileName.includes(word));
+        if (allWordsFound) {
+          score = 60;
         }
-        if (allFound) {
-          score = 20;
+      }
+      
+      // Boost score for files vs directories based on query
+      if (score > 0) {
+        // If query has an extension, boost files with that extension
+        if (query.includes('.') && file.name.toLowerCase().endsWith(lowerQuery)) {
+          score += 20;
+        }
+        // If query is uppercase, boost exact case matches
+        if (query.toUpperCase() === query && file.name.includes(query)) {
+          score += 15;
         }
       }
       
       return { file, score };
     }).filter(item => item.score > 0);
     
-    let results: FileInfo[] = scoredResults.map(item => item.file);
+    // Sort by score descending
+    scoredResults.sort((a, b) => b.score - a.score);
+    
+    let results = scoredResults.map(item => item.file);
     
     // Recursively search subdirectories up to the specified depth
     if (depth > 0) {
@@ -173,9 +262,13 @@ async function recursiveQuickSearch(baseDir: string, query: string, depth: numbe
   }
 }
 
+// Helper function to escape special characters in string for RegExp
+function escapeRegExp(string: string) {
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 async function quickSearch(query: string) {
   const searchStatusElement = document.querySelector("#search-status");
-  const directoryContentsElement = document.querySelector("#directory-contents");
   
   if (!query.trim()) {
     displayFiles(currentDirectoryFiles);
@@ -202,24 +295,17 @@ function displayFiles(files: FileInfo[]) {
   const directoryContentsElement = document.querySelector("#directory-contents");
   if (directoryContentsElement) {
     directoryContentsElement.innerHTML = files
-      .map(
-        (file) => `
-        <div class="file-item ${file.is_dir ? 'directory' : ''}" data-path="${file.path}">
-          ${getFileIcon(file.is_dir)}
-          <div class="file-name">${file.name}</div>
-          ${!file.is_dir ? `<div class="file-size">${formatFileSize(file.size)}</div>` : ''}
-        </div>
-      `
-      )
+      .map(renderFileItem)
       .join("");
 
     // Add click event listeners to directory items
-    document.querySelectorAll(".file-item").forEach((item) => {
+    const items = directoryContentsElement.querySelectorAll(".file-item");
+    items.forEach((item) => {
       item.addEventListener("click", async () => {
         const path = item.getAttribute("data-path");
-        const isDir = item.classList.contains("directory");
-        if (path && isDir) {
-          await loadDirectoryContents(path);
+        const file = files.find(file => file.path === path);
+        if (file) {
+          handleFileClick(file);
         }
       });
     });
@@ -277,13 +363,6 @@ async function searchFiles(query: string) {
     if (directoryContentsElement) {
       directoryContentsElement.classList.remove("searching");
     }
-  }
-}
-
-function toggleConfigPanel() {
-  const configPanel = document.querySelector('.config-panel');
-  if (configPanel) {
-    configPanel.classList.toggle('hidden');
   }
 }
 
@@ -405,3 +484,30 @@ window.addEventListener("DOMContentLoaded", () => {
   if (searchHiddenInput) searchHiddenInput.checked = searchConfig.searchHidden;
   if (debounceInput) debounceInput.value = searchConfig.debounceMs.toString();
 });
+
+// Add view toggle functionality
+let isGridView = true;
+const viewGridButton = document.querySelector('#view-grid');
+const viewListButton = document.querySelector('#view-list');
+const directoryContents = document.querySelector('#directory-contents');
+
+viewGridButton?.addEventListener('click', () => {
+  isGridView = true;
+  directoryContents?.classList.add('grid-view');
+  viewGridButton.classList.add('active');
+  viewListButton?.classList.remove('active');
+});
+
+viewListButton?.addEventListener('click', () => {
+  isGridView = false;
+  directoryContents?.classList.remove('grid-view');
+  viewListButton.classList.add('active');
+  viewGridButton?.classList.remove('active');
+});
+
+function handleFileClick(file: FileInfo) {
+  if (file.is_dir) {
+    currentPath = file.path;
+    loadDirectoryContents(file.path);
+  }
+}

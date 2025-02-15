@@ -4,84 +4,115 @@
     <meta charset="UTF-8" />
     <link rel="stylesheet" href="/src/styles.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Rust File Explorer</title>
+    <title>File Explorer</title>
     <script type="module" src="/src/main.ts" defer></script>
   </head>
 
   <body>
-    <main class="container">
-      <h1>File Explorer</h1>
-      <div class="explorer-container">
-        <div class="sidebar">
-          <h2>Drives</h2>
+    <div class="app-container">
+      <!-- Left Sidebar -->
+      <nav class="sidebar">
+        <div class="nav-items">
+          <a href="#" class="nav-item active">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/>
+            </svg>
+            <span>Home</span>
+          </a>
+          <a href="#" class="nav-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M4 6h16M4 10h16M4 14h16M4 18h16"/>
+            </svg>
+            <span>All Files</span>
+          </a>
           <div id="drives-list" class="drives-list">
             <!-- Drives will be populated here -->
           </div>
         </div>
-        <div class="content">
-          <div class="content-header">
-            <div class="header-top">
-              <h2 id="current-path">Select a drive</h2>
-              <div class="search-container">
-                <input 
-                  type="text" 
-                  id="search-input" 
-                  class="search-input" 
-                  placeholder="Search files..."
-                />
-                <button id="search-button" class="search-button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8"/>
-                    <path d="M21 21l-4.35-4.35"/>
-                  </svg>
-                </button>
-                <button id="config-button" class="config-button">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
-                    <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-            <div id="search-status" class="search-status"></div>
-            <div class="config-panel hidden">
-              <h3>Search Configuration</h3>
-              <div class="config-group">
-                <label for="quick-search-depth">Quick Search Depth:</label>
-                <div class="input-with-help">
-                  <input type="number" id="quick-search-depth" min="0" max="5" value="2" />
-                  <div class="help-text">How many subfolder levels to search (0-5)</div>
-                </div>
-              </div>
-              <div class="config-group">
-                <label for="max-results">Max Results:</label>
-                <div class="input-with-help">
-                  <input type="number" id="max-results" min="100" max="10000" value="1000" step="100" />
-                  <div class="help-text">Maximum number of results to show</div>
-                </div>
-              </div>
-              <div class="config-group">
-                <label for="search-hidden">Search Hidden Files:</label>
-                <div class="input-with-help">
-                  <input type="checkbox" id="search-hidden" />
-                  <div class="help-text">Include hidden files in search results</div>
-                </div>
-              </div>
-              <div class="config-group">
-                <label for="debounce-time">Debounce Time (ms):</label>
-                <div class="input-with-help">
-                  <input type="number" id="debounce-time" min="50" max="1000" value="100" step="50" />
-                  <div class="help-text">Delay before searching as you type</div>
-                </div>
-              </div>
-              <button id="config-apply" class="config-apply">Apply</button>
-            </div>
+      </nav>
+
+      <!-- Main Content -->
+      <main class="main-content">
+        <!-- Header -->
+        <header class="header">
+          <div class="search-bar">
+            <input 
+              type="text" 
+              id="search-input" 
+              placeholder="Search files..."
+            />
+            <button id="search-button" class="icon-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"/>
+                <path d="M21 21l-4.35-4.35"/>
+              </svg>
+            </button>
           </div>
-          <div id="directory-contents" class="directory-contents">
-            <!-- Directory contents will be populated here -->
+          <div class="header-actions">
+            <button id="view-grid" class="icon-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1H5a1 1 0 01-1-1v-4zM14 15a1 1 0 011-1h4a1 1 0 011 1v4a1 1 0 01-1 1h-4a1 1 0 01-1-1v-4z"/>
+              </svg>
+            </button>
+            <button id="view-list" class="icon-button active">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M4 6h16M4 12h16M4 18h16"/>
+              </svg>
+            </button>
+            <button id="config-button" class="icon-button">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 15a3 3 0 100-6 3 3 0 000 6z" />
+                <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/>
+              </svg>
+            </button>
+          </div>
+        </header>
+
+        <!-- Path and Status -->
+        <div class="subheader">
+          <h2 id="current-path">Select a drive</h2>
+          <div id="search-status" class="search-status"></div>
+        </div>
+
+        <!-- File Grid -->
+        <div id="directory-contents" class="directory-contents grid-view">
+          <!-- Directory contents will be populated here -->
+        </div>
+      </main>
+
+      <!-- Config Panel Modal -->
+      <div class="config-panel hidden">
+        <h3>Search Configuration</h3>
+        <div class="config-group">
+          <label for="quick-search-depth">Quick Search Depth:</label>
+          <div class="input-with-help">
+            <input type="number" id="quick-search-depth" min="0" max="5" value="2" />
+            <div class="help-text">How many subfolder levels to search (0-5)</div>
           </div>
         </div>
+        <div class="config-group">
+          <label for="max-results">Max Results:</label>
+          <div class="input-with-help">
+            <input type="number" id="max-results" min="100" max="10000" value="1000" step="100" />
+            <div class="help-text">Maximum number of results to show</div>
+          </div>
+        </div>
+        <div class="config-group">
+          <label for="search-hidden">Search Hidden Files:</label>
+          <div class="input-with-help">
+            <input type="checkbox" id="search-hidden" />
+            <div class="help-text">Include hidden files in search results</div>
+          </div>
+        </div>
+        <div class="config-group">
+          <label for="debounce-time">Debounce Time (ms):</label>
+          <div class="input-with-help">
+            <input type="number" id="debounce-time" min="50" max="1000" value="100" step="50" />
+            <div class="help-text">Delay before searching as you type</div>
+          </div>
+        </div>
+        <button id="config-apply" class="config-apply">Apply</button>
       </div>
-    </main>
+    </div>
   </body>
 </html>
