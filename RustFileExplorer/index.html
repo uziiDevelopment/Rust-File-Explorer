@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="/src/styles.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rust File Explorer</title>
+    <script type="module" src="/src/main.ts" defer></script>
+  </head>
+
+  <body>
+    <main class="container">
+      <h1>File Explorer</h1>
+      <div class="explorer-container">
+        <div class="sidebar">
+          <h2>Drives</h2>
+          <div id="drives-list" class="drives-list">
+            <!-- Drives will be populated here -->
+          </div>
+        </div>
+        <div class="content">
+          <div class="content-header">
+            <div class="header-top">
+              <h2 id="current-path">Select a drive</h2>
+              <div class="search-container">
+                <input 
+                  type="text" 
+                  id="search-input" 
+                  class="search-input" 
+                  placeholder="Search files..."
+                />
+                <button id="search-button" class="search-button">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8"/>
+                    <path d="M21 21l-4.35-4.35"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+            <div id="search-status" class="search-status"></div>
+          </div>
+          <div id="directory-contents" class="directory-contents">
+            <!-- Directory contents will be populated here -->
+          </div>
+        </div>
+      </div>
+    </main>
+  </body>
+</html>
