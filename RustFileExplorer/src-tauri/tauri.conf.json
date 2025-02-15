@@ -13,9 +13,11 @@
     "withGlobalTauri": true,
     "windows": [
       {
-        "title": "rustfileexplorer",
+        "title": "Rust File Explorer",
         "width": 800,
-        "height": 600
+        "height": 600,
+        "resizable": true,
+        "maximized": true
       }
     ],
     "security": {

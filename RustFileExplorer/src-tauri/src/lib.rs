@@ -188,6 +188,63 @@ fn search_files(start_path: &str, query: &str) -> Result<SearchResponse, String>
     })
 }
 
+#[tauri::command]
+fn calculate_folder_size(path: &str) -> Result<u64, String> {
+    let path_buf = PathBuf::from(path);
+    if !path_buf.exists() || !path_buf.is_dir() {
+        return Err("Invalid directory path".to_string());
+    }
+
+    let mut total_size = 0u64;
+    let walker = WalkBuilder::new(path)
+        .hidden(true)  // Include hidden files
+        .build();
+
+    for entry in walker {
+        if let Ok(entry) = entry {
+            if let Ok(metadata) = entry.metadata() {
+                if metadata.is_file() {
+                    total_size += metadata.len();
+                }
+            }
+        }
+    }
+
+    Ok(total_size)
+}
+
+#[tauri::command]
+fn open_file(path: &str) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        use std::process::Command;
+        Command::new("cmd")
+            .args(["/C", "start", "", path])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        use std::process::Command;
+        Command::new("open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        use std::process::Command;
+        Command::new("xdg-open")
+            .arg(path)
+            .spawn()
+            .map_err(|e| e.to_string())?;
+    }
+
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -196,7 +253,9 @@ pub fn run() {
             greet,
             get_drives,
             list_directory_contents,
-            search_files
+            search_files,
+            calculate_folder_size,
+            open_file
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

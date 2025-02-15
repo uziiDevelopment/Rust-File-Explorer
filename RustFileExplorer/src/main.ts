@@ -107,19 +107,35 @@ function getFileIcon(file: FileInfo): string {
 
 function renderFileItem(file: FileInfo): string {
   const icon = getFileIcon(file);
-  const size = formatFileSize(file.size);
+  const sizeDisplay = file.is_dir ? '' : formatFileSize(file.size);
   
   return `
-    <div class="file-item" data-path="${file.path}">
-      <div class="file-icon">
-        ${icon}
-      </div>
-      <div class="file-info">
-        <div class="file-name">${file.name}</div>
-        <div class="file-meta">${size}</div>
-      </div>
+    <div class="file-item" data-path="${file.path}" data-is-dir="${file.is_dir}">
+      <div class="file-icon">${icon}</div>
+      <div class="file-name">${file.name}</div>
+      <div class="file-size">${sizeDisplay}</div>
     </div>
   `;
+}
+
+async function showFileProperties(file: FileInfo) {
+  const sizeStr = formatFileSize(file.size);
+  alert(`File Properties:\nName: ${file.name}\nSize: ${sizeStr}`);
+}
+
+async function showFolderProperties(path: string) {
+  try {
+    const size = await invoke<number>('calculate_folder_size', { path });
+    const formattedSize = formatFileSize(size);
+    alert(`Folder Size: ${formattedSize}`);
+  } catch (error) {
+    console.error('Error calculating folder size:', error);
+    alert('Error calculating folder size');
+  }
+}
+
+async function openFile(file: FileInfo) {
+  await invoke('open_file', { path: file.path });
 }
 
 async function loadDrives() {
@@ -385,7 +401,112 @@ function updateConfig() {
 
 // Initialize the application when the DOM is loaded
 window.addEventListener("DOMContentLoaded", () => {
+  // Prevent default context menu globally
+  window.addEventListener('contextmenu', (e) => {
+    e.preventDefault();
+    return false;
+  }, true);
+
   loadDrives();
+  
+  // Set list view as default
+  let isGridView = false;
+  const viewGridButton = document.querySelector('#view-grid');
+  const viewListButton = document.querySelector('#view-list');
+  const directoryContents = document.querySelector('#directory-contents');
+  
+  // Initialize list view
+  directoryContents?.classList.remove('grid-view');
+  viewListButton?.classList.add('active');
+  viewGridButton?.classList.remove('active');
+
+  // File list context menu handler
+  const fileList = document.getElementById('file-list');
+  if (fileList) {
+    fileList.addEventListener('mouseup', (e: MouseEvent) => {
+      // Only handle right clicks
+      if (e.button !== 2) return;
+      
+      const target = e.target as HTMLElement;
+      const fileItem = target.closest('.file-item') as HTMLElement;
+      
+      if (fileItem) {
+        const path = fileItem.dataset.path;
+        const isDir = fileItem.dataset.isDir === 'true';
+        
+        if (path) {
+          // Remove any existing context menus
+          const existingMenus = document.querySelectorAll('.context-menu');
+          existingMenus.forEach(menu => menu.remove());
+
+          const contextMenu = document.createElement('div');
+          contextMenu.className = 'context-menu';
+          
+          contextMenu.innerHTML = `
+            <div class="context-menu-item" data-action="open">Open</div>
+            <div class="context-menu-item" data-action="properties">Properties</div>
+          `;
+          
+          document.body.appendChild(contextMenu);
+          
+          // Position menu
+          const x = e.clientX;
+          const y = e.clientY;
+          
+          // Ensure menu stays within viewport
+          const menuWidth = 150; // Approximate width
+          const menuHeight = 80; // Approximate height
+          
+          const posX = Math.min(x, window.innerWidth - menuWidth);
+          const posY = Math.min(y, window.innerHeight - menuHeight);
+          
+          contextMenu.style.position = 'fixed';
+          contextMenu.style.left = posX + 'px';
+          contextMenu.style.top = posY + 'px';
+          
+          const handleClick = (e: MouseEvent) => {
+            if (!contextMenu.contains(e.target as Node)) {
+              contextMenu.remove();
+              document.removeEventListener('mousedown', handleClick);
+              return;
+            }
+            
+            const menuItem = (e.target as HTMLElement).closest('.context-menu-item');
+            if (menuItem) {
+              const action = menuItem.dataset.action;
+              const fileInfo: FileInfo = {
+                name: fileItem.querySelector('.file-name')?.textContent || '',
+                path: path,
+                is_dir: isDir,
+                size: 0
+              };
+
+              switch (action) {
+                case 'open':
+                  if (isDir) {
+                    loadDirectoryContents(path);
+                  } else {
+                    openFile(fileInfo);
+                  }
+                  break;
+                case 'properties':
+                  if (isDir) {
+                    showFolderProperties(path);
+                  } else {
+                    showFileProperties(fileInfo);
+                  }
+                  break;
+              }
+              contextMenu.remove();
+              document.removeEventListener('mousedown', handleClick);
+            }
+          };
+          
+          document.addEventListener('mousedown', handleClick);
+        }
+      }
+    });
+  }
   
   // Add search event listeners
   const searchInput = document.querySelector("#search-input");
@@ -398,12 +519,10 @@ window.addEventListener("DOMContentLoaded", () => {
   searchInput?.addEventListener("input", (e) => {
     const input = e.target as HTMLInputElement;
     
-    // Clear previous timeout
     if (searchDebounceTimeout) {
       window.clearTimeout(searchDebounceTimeout);
     }
     
-    // Set new timeout to debounce search
     searchDebounceTimeout = window.setTimeout(() => {
       if (!isSearching) {
         quickSearch(input.value);
@@ -427,34 +546,65 @@ window.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Add configuration panel event listeners
-  configButton?.addEventListener("click", () => {
-    const configPanel = document.querySelector('.config-panel');
+  // Config panel functionality
+  const configPanel = document.querySelector('.config-panel') as HTMLElement;
+
+  // Create backdrop for config panel
+  const backdrop = document.createElement('div');
+  backdrop.className = 'backdrop';
+  backdrop.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.2s ease-in-out;
+    z-index: 999;
+  `;
+  document.body.appendChild(backdrop);
+
+  // Toggle config panel
+  configButton?.addEventListener('click', (e) => {
+    e.stopPropagation();
     if (configPanel) {
-      configPanel.classList.toggle('hidden');
-    }
-  });
-
-  // Handle clicking outside the config panel to close it
-  document.addEventListener("click", (e) => {
-    const configPanel = document.querySelector('.config-panel');
-    const configButton = document.querySelector('#config-button');
-    const target = e.target as HTMLElement;
-
-    if (configPanel && !configPanel.classList.contains('hidden')) {
-      // Check if click is outside both the config panel and config button
-      if (!configPanel.contains(target) && !configButton?.contains(target)) {
-        configPanel.classList.add('hidden');
+      const isShowing = configPanel.classList.contains('show');
+      if (isShowing) {
+        configPanel.classList.remove('show');
+        backdrop.style.opacity = '0';
+        backdrop.style.visibility = 'hidden';
+      } else {
+        configPanel.classList.add('show');
+        backdrop.style.opacity = '1';
+        backdrop.style.visibility = 'visible';
       }
     }
   });
 
-  configApplyButton?.addEventListener("click", () => {
-    updateConfig();
-    const configPanel = document.querySelector('.config-panel');
-    if (configPanel) {
-      configPanel.classList.add('hidden');
+  // Close panel when clicking outside
+  backdrop.addEventListener('click', () => {
+    configPanel?.classList.remove('show');
+    backdrop.style.opacity = '0';
+    backdrop.style.visibility = 'hidden';
+  });
+
+  // Close panel when pressing escape
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && configPanel?.classList.contains('show')) {
+      configPanel.classList.remove('show');
+      backdrop.style.opacity = '0';
+      backdrop.style.visibility = 'hidden';
     }
+  });
+
+  // Apply config changes
+  configApplyButton?.addEventListener('click', () => {
+    updateConfig();
+    configPanel?.classList.remove('show');
+    backdrop.style.opacity = '0';
+    backdrop.style.visibility = 'hidden';
   });
 
   // Load saved config
@@ -483,26 +633,21 @@ window.addEventListener("DOMContentLoaded", () => {
   if (maxResultsInput) maxResultsInput.value = searchConfig.maxResults.toString();
   if (searchHiddenInput) searchHiddenInput.checked = searchConfig.searchHidden;
   if (debounceInput) debounceInput.value = searchConfig.debounceMs.toString();
-});
 
-// Add view toggle functionality
-let isGridView = true;
-const viewGridButton = document.querySelector('#view-grid');
-const viewListButton = document.querySelector('#view-list');
-const directoryContents = document.querySelector('#directory-contents');
+  // View toggle functionality
+  viewGridButton?.addEventListener('click', () => {
+    isGridView = true;
+    directoryContents?.classList.add('grid-view');
+    viewGridButton.classList.add('active');
+    viewListButton?.classList.remove('active');
+  });
 
-viewGridButton?.addEventListener('click', () => {
-  isGridView = true;
-  directoryContents?.classList.add('grid-view');
-  viewGridButton.classList.add('active');
-  viewListButton?.classList.remove('active');
-});
-
-viewListButton?.addEventListener('click', () => {
-  isGridView = false;
-  directoryContents?.classList.remove('grid-view');
-  viewListButton.classList.add('active');
-  viewGridButton?.classList.remove('active');
+  viewListButton?.addEventListener('click', () => {
+    isGridView = false;
+    directoryContents?.classList.remove('grid-view');
+    viewListButton.classList.add('active');
+    viewGridButton?.classList.remove('active');
+  });
 });
 
 function handleFileClick(file: FileInfo) {
