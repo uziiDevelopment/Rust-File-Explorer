@@ -400,254 +400,271 @@ function updateConfig() {
 }
 
 // Initialize the application when the DOM is loaded
-window.addEventListener("DOMContentLoaded", () => {
-  // Prevent default context menu globally
-  window.addEventListener('contextmenu', (e) => {
-    e.preventDefault();
-    return false;
-  }, true);
+window.addEventListener("DOMContentLoaded", async () => {
+  // Show loading screen immediately
+  const loadingScreen = document.getElementById('loading-screen');
+  if (loadingScreen) {
+    loadingScreen.style.display = 'flex';
+    loadingScreen.style.opacity = '1';
+  }
 
-  loadDrives();
-  
-  // Set list view as default
-  let isGridView = false;
-  const viewGridButton = document.querySelector('#view-grid');
-  const viewListButton = document.querySelector('#view-list');
-  const directoryContents = document.querySelector('#directory-contents');
-  
-  // Initialize list view
-  directoryContents?.classList.remove('grid-view');
-  viewListButton?.classList.add('active');
-  viewGridButton?.classList.remove('active');
+  try {
+    // Load initial data
+    await loadDrives();
+    await loadDirectoryContents('');
+    
+    // Hide loading screen after initial load
+    if (loadingScreen) {
+      loadingScreen.classList.add('hidden');
+      setTimeout(() => {
+        loadingScreen.style.display = 'none';
+      }, 3000);
+    }
+    
+    // Prevent default context menu globally
+    window.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      return false;
+    }, true);
 
-  // File list context menu handler
-  const fileList = document.getElementById('file-list');
-  if (fileList) {
-    fileList.addEventListener('mouseup', (e: MouseEvent) => {
-      // Only handle right clicks
-      if (e.button !== 2) return;
-      
-      const target = e.target as HTMLElement;
-      const fileItem = target.closest('.file-item') as HTMLElement;
-      
-      if (fileItem) {
-        const path = fileItem.dataset.path;
-        const isDir = fileItem.dataset.isDir === 'true';
+    // File list context menu handler
+    const fileList = document.getElementById('file-list');
+    if (fileList) {
+      fileList.addEventListener('mouseup', (e: MouseEvent) => {
+        // Only handle right clicks
+        if (e.button !== 2) return;
         
-        if (path) {
-          // Remove any existing context menus
-          const existingMenus = document.querySelectorAll('.context-menu');
-          existingMenus.forEach(menu => menu.remove());
+        const target = e.target as HTMLElement;
+        const fileItem = target.closest('.file-item') as HTMLElement;
+        
+        if (fileItem) {
+          const path = fileItem.dataset.path;
+          const isDir = fileItem.dataset.isDir === 'true';
+          
+          if (path) {
+            // Remove any existing context menus
+            const existingMenus = document.querySelectorAll('.context-menu');
+            existingMenus.forEach(menu => menu.remove());
 
-          const contextMenu = document.createElement('div');
-          contextMenu.className = 'context-menu';
-          
-          contextMenu.innerHTML = `
-            <div class="context-menu-item" data-action="open">Open</div>
-            <div class="context-menu-item" data-action="properties">Properties</div>
-          `;
-          
-          document.body.appendChild(contextMenu);
-          
-          // Position menu
-          const x = e.clientX;
-          const y = e.clientY;
-          
-          // Ensure menu stays within viewport
-          const menuWidth = 150; // Approximate width
-          const menuHeight = 80; // Approximate height
-          
-          const posX = Math.min(x, window.innerWidth - menuWidth);
-          const posY = Math.min(y, window.innerHeight - menuHeight);
-          
-          contextMenu.style.position = 'fixed';
-          contextMenu.style.left = posX + 'px';
-          contextMenu.style.top = posY + 'px';
-          
-          const handleClick = (e: MouseEvent) => {
-            if (!contextMenu.contains(e.target as Node)) {
-              contextMenu.remove();
-              document.removeEventListener('mousedown', handleClick);
-              return;
-            }
+            const contextMenu = document.createElement('div');
+            contextMenu.className = 'context-menu';
             
-            const menuItem = (e.target as HTMLElement).closest('.context-menu-item');
-            if (menuItem) {
-              const action = menuItem.dataset.action;
-              const fileInfo: FileInfo = {
-                name: fileItem.querySelector('.file-name')?.textContent || '',
-                path: path,
-                is_dir: isDir,
-                size: 0
-              };
-
-              switch (action) {
-                case 'open':
-                  if (isDir) {
-                    loadDirectoryContents(path);
-                  } else {
-                    openFile(fileInfo);
-                  }
-                  break;
-                case 'properties':
-                  if (isDir) {
-                    showFolderProperties(path);
-                  } else {
-                    showFileProperties(fileInfo);
-                  }
-                  break;
+            contextMenu.innerHTML = `
+              <div class="context-menu-item" data-action="open">Open</div>
+              <div class="context-menu-item" data-action="properties">Properties</div>
+            `;
+            
+            document.body.appendChild(contextMenu);
+            
+            // Position menu
+            const x = e.clientX;
+            const y = e.clientY;
+            
+            // Ensure menu stays within viewport
+            const menuWidth = 150; // Approximate width
+            const menuHeight = 80; // Approximate height
+            
+            const posX = Math.min(x, window.innerWidth - menuWidth);
+            const posY = Math.min(y, window.innerHeight - menuHeight);
+            
+            contextMenu.style.position = 'fixed';
+            contextMenu.style.left = posX + 'px';
+            contextMenu.style.top = posY + 'px';
+            
+            const handleClick = (e: MouseEvent) => {
+              if (!contextMenu.contains(e.target as Node)) {
+                contextMenu.remove();
+                document.removeEventListener('mousedown', handleClick);
+                return;
               }
-              contextMenu.remove();
-              document.removeEventListener('mousedown', handleClick);
-            }
-          };
-          
-          document.addEventListener('mousedown', handleClick);
+              
+              const menuItem = (e.target as HTMLElement).closest('.context-menu-item');
+              if (menuItem) {
+                const action = menuItem.dataset.action;
+                const fileInfo: FileInfo = {
+                  name: fileItem.querySelector('.file-name')?.textContent || '',
+                  path: path,
+                  is_dir: isDir,
+                  size: 0
+                };
+
+                switch (action) {
+                  case 'open':
+                    if (isDir) {
+                      loadDirectoryContents(path);
+                    } else {
+                      openFile(fileInfo);
+                    }
+                    break;
+                  case 'properties':
+                    if (isDir) {
+                      showFolderProperties(path);
+                    } else {
+                      showFileProperties(fileInfo);
+                    }
+                    break;
+                }
+                contextMenu.remove();
+                document.removeEventListener('mousedown', handleClick);
+              }
+            };
+            
+            document.addEventListener('mousedown', handleClick);
+          }
+        }
+      });
+    }
+    
+    // Add search event listeners
+    const searchInput = document.querySelector("#search-input");
+    const searchButton = document.querySelector("#search-button");
+    const configButton = document.querySelector("#config-button");
+    const configApplyButton = document.querySelector("#config-apply");
+    
+    let searchDebounceTimeout: number | null = null;
+    
+    searchInput?.addEventListener("input", (e) => {
+      const input = e.target as HTMLInputElement;
+      
+      if (searchDebounceTimeout) {
+        window.clearTimeout(searchDebounceTimeout);
+      }
+      
+      searchDebounceTimeout = window.setTimeout(() => {
+        if (!isSearching) {
+          quickSearch(input.value);
+        }
+      }, searchConfig.debounceMs);
+    });
+    
+    searchInput?.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        const input = e.target as HTMLInputElement;
+        if (!isSearching && input.value.trim().length > 0) {
+          searchFiles(input.value);
         }
       }
     });
-  }
-  
-  // Add search event listeners
-  const searchInput = document.querySelector("#search-input");
-  const searchButton = document.querySelector("#search-button");
-  const configButton = document.querySelector("#config-button");
-  const configApplyButton = document.querySelector("#config-apply");
-  
-  let searchDebounceTimeout: number | null = null;
-  
-  searchInput?.addEventListener("input", (e) => {
-    const input = e.target as HTMLInputElement;
     
-    if (searchDebounceTimeout) {
-      window.clearTimeout(searchDebounceTimeout);
-    }
-    
-    searchDebounceTimeout = window.setTimeout(() => {
-      if (!isSearching) {
-        quickSearch(input.value);
-      }
-    }, searchConfig.debounceMs);
-  });
-  
-  searchInput?.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") {
-      const input = e.target as HTMLInputElement;
-      if (!isSearching && input.value.trim().length > 0) {
+    searchButton?.addEventListener("click", () => {
+      const input = document.querySelector("#search-input") as HTMLInputElement;
+      if (!isSearching && input?.value.trim().length > 0) {
         searchFiles(input.value);
       }
-    }
-  });
-  
-  searchButton?.addEventListener("click", () => {
-    const input = document.querySelector("#search-input") as HTMLInputElement;
-    if (!isSearching && input?.value.trim().length > 0) {
-      searchFiles(input.value);
-    }
-  });
+    });
 
-  // Config panel functionality
-  const configPanel = document.querySelector('.config-panel') as HTMLElement;
+    // Config panel functionality
+    const configPanel = document.querySelector('.config-panel') as HTMLElement;
 
-  // Create backdrop for config panel
-  const backdrop = document.createElement('div');
-  backdrop.className = 'backdrop';
-  backdrop.style.cssText = `
-    position: fixed;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
-    opacity: 0;
-    visibility: hidden;
-    transition: all 0.2s ease-in-out;
-    z-index: 999;
-  `;
-  document.body.appendChild(backdrop);
+    // Create backdrop for config panel
+    const backdrop = document.createElement('div');
+    backdrop.className = 'backdrop';
+    backdrop.style.cssText = `
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.2s ease-in-out;
+      z-index: 999;
+    `;
+    document.body.appendChild(backdrop);
 
-  // Toggle config panel
-  configButton?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    if (configPanel) {
-      const isShowing = configPanel.classList.contains('show');
-      if (isShowing) {
+    // Toggle config panel
+    configButton?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (configPanel) {
+        const isShowing = configPanel.classList.contains('show');
+        if (isShowing) {
+          configPanel.classList.remove('show');
+          backdrop.style.opacity = '0';
+          backdrop.style.visibility = 'hidden';
+        } else {
+          configPanel.classList.add('show');
+          backdrop.style.opacity = '1';
+          backdrop.style.visibility = 'visible';
+        }
+      }
+    });
+
+    // Close panel when clicking outside
+    backdrop.addEventListener('click', () => {
+      configPanel?.classList.remove('show');
+      backdrop.style.opacity = '0';
+      backdrop.style.visibility = 'hidden';
+    });
+
+    // Close panel when pressing escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && configPanel?.classList.contains('show')) {
         configPanel.classList.remove('show');
         backdrop.style.opacity = '0';
         backdrop.style.visibility = 'hidden';
-      } else {
-        configPanel.classList.add('show');
-        backdrop.style.opacity = '1';
-        backdrop.style.visibility = 'visible';
       }
-    }
-  });
+    });
 
-  // Close panel when clicking outside
-  backdrop.addEventListener('click', () => {
-    configPanel?.classList.remove('show');
-    backdrop.style.opacity = '0';
-    backdrop.style.visibility = 'hidden';
-  });
-
-  // Close panel when pressing escape
-  document.addEventListener('keydown', (e) => {
-    if (e.key === 'Escape' && configPanel?.classList.contains('show')) {
-      configPanel.classList.remove('show');
+    // Apply config changes
+    configApplyButton?.addEventListener('click', () => {
+      updateConfig();
+      configPanel?.classList.remove('show');
       backdrop.style.opacity = '0';
       backdrop.style.visibility = 'hidden';
+    });
+
+    // Load saved config
+    const savedConfig = localStorage.getItem('searchConfig');
+    if (savedConfig) {
+      try {
+        const parsed = JSON.parse(savedConfig);
+        searchConfig = {
+          quickSearchDepth: parsed.quickSearchDepth ?? 2,
+          maxResults: parsed.maxResults ?? 1000,
+          searchHidden: parsed.searchHidden ?? false,
+          debounceMs: parsed.debounceMs ?? 100
+        };
+      } catch (e) {
+        console.error('Error loading saved config:', e);
+      }
     }
-  });
 
-  // Apply config changes
-  configApplyButton?.addEventListener('click', () => {
-    updateConfig();
-    configPanel?.classList.remove('show');
-    backdrop.style.opacity = '0';
-    backdrop.style.visibility = 'hidden';
-  });
+    // Update config panel with current values
+    const depthInput = document.querySelector('#quick-search-depth') as HTMLInputElement;
+    const maxResultsInput = document.querySelector('#max-results') as HTMLInputElement;
+    const searchHiddenInput = document.querySelector('#search-hidden') as HTMLInputElement;
+    const debounceInput = document.querySelector('#debounce-time') as HTMLInputElement;
 
-  // Load saved config
-  const savedConfig = localStorage.getItem('searchConfig');
-  if (savedConfig) {
-    try {
-      const parsed = JSON.parse(savedConfig);
-      searchConfig = {
-        quickSearchDepth: parsed.quickSearchDepth ?? 2,
-        maxResults: parsed.maxResults ?? 1000,
-        searchHidden: parsed.searchHidden ?? false,
-        debounceMs: parsed.debounceMs ?? 100
-      };
-    } catch (e) {
-      console.error('Error loading saved config:', e);
-    }
-  }
+    if (depthInput) depthInput.value = searchConfig.quickSearchDepth.toString();
+    if (maxResultsInput) maxResultsInput.value = searchConfig.maxResults.toString();
+    if (searchHiddenInput) searchHiddenInput.checked = searchConfig.searchHidden;
+    if (debounceInput) debounceInput.value = searchConfig.debounceMs.toString();
 
-  // Update config panel with current values
-  const depthInput = document.querySelector('#quick-search-depth') as HTMLInputElement;
-  const maxResultsInput = document.querySelector('#max-results') as HTMLInputElement;
-  const searchHiddenInput = document.querySelector('#search-hidden') as HTMLInputElement;
-  const debounceInput = document.querySelector('#debounce-time') as HTMLInputElement;
-
-  if (depthInput) depthInput.value = searchConfig.quickSearchDepth.toString();
-  if (maxResultsInput) maxResultsInput.value = searchConfig.maxResults.toString();
-  if (searchHiddenInput) searchHiddenInput.checked = searchConfig.searchHidden;
-  if (debounceInput) debounceInput.value = searchConfig.debounceMs.toString();
-
-  // View toggle functionality
-  viewGridButton?.addEventListener('click', () => {
-    isGridView = true;
-    directoryContents?.classList.add('grid-view');
-    viewGridButton.classList.add('active');
-    viewListButton?.classList.remove('active');
-  });
-
-  viewListButton?.addEventListener('click', () => {
-    isGridView = false;
+    // View toggle functionality
+    const viewGridButton = document.querySelector('#view-grid');
+    const viewListButton = document.querySelector('#view-list');
+    const directoryContents = document.querySelector('#directory-contents');
+    
+    // Initialize list view
     directoryContents?.classList.remove('grid-view');
-    viewListButton.classList.add('active');
+    viewListButton?.classList.add('active');
     viewGridButton?.classList.remove('active');
-  });
+
+    viewGridButton?.addEventListener('click', () => {
+      directoryContents?.classList.add('grid-view');
+      viewGridButton.classList.add('active');
+      viewListButton?.classList.remove('active');
+    });
+
+    viewListButton?.addEventListener('click', () => {
+      directoryContents?.classList.remove('grid-view');
+      viewListButton.classList.add('active');
+      viewGridButton?.classList.remove('active');
+    });
+  } catch (error) {
+    console.error("Error initializing application:", error);
+  }
 });
 
 function handleFileClick(file: FileInfo) {

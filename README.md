@@ -9,7 +9,6 @@ A basic file explorer built with Rust and Tauri. Uses TypeScript, HTML and CSS f
 - 🔍 Quick search with configurable depth
 - 🎨 Modern, responsive UI
 - 🛠️ Customizable search settings
-- 📱 Cross-platform support
 - 🖥️ Native performance with Rust backend
 
 ## Technology Stack
